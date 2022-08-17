@@ -11,12 +11,14 @@ Reference: [https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-a
 ## Pre-Requisites
 
 - The region has to be set to us-east-1 for the templates below
+- You have gained access to an eligible AWS environment via CLI
 
 ## Setup
 
 Let's create a simple CFN template that deploys an EC2 instance.
 
-```yaml
+```sh
+cat <<EoF > ~/ec2.yaml
 AWSTemplateFormatVersion: 2010-09-09
 Description: ---
 
@@ -33,19 +35,22 @@ Outputs:
   InstanceID:
     Description: Instance ID
     Value: !Ref myEC2Instance
+EoF
 ```
 
-If you try and delete this stack after deployment, the instance will be terminated. 
-
+Create the EC2 instance through a CloudFormation stack
 ```bash
 aws cloudformation create-stack --stack-name test-tf-import --template-body file://ec2.yaml
+```
+Delete the stack, the ec2 instance will also be deleted
 
+```bash
 aws cloudformation delete-stack --stack-name test-tf-import
 ```
 
 Let's add the DeletionPolicy attribute:
-
-```yaml
+```sh
+cat <<EoF > ~/ec2.yaml
 AWSTemplateFormatVersion: 2010-09-09
 Description: ---
 
@@ -63,9 +68,19 @@ Outputs:
   InstanceID:
     Description: Instance ID
     Value: !Ref myEC2Instance
+EoF
 ```
+Once again, create the EC2 instance through a CloudFormation stack
+```bash
+aws cloudformation create-stack --stack-name test-tf-import --template-body file://ec2.yaml
+```
+Delete the stack.
 
-Now, create the stack and delete it again. The instance should not be affected.
+```bash
+aws cloudformation delete-stack --stack-name test-tf-import
+```
+Navigate to the EC2 console where your instance should still be preserved.
+
 
 Great! Now we need to import it into a Terraform state file to be managed by the new IaC tool. Let's create the [main.tf](http://main.tf) file with the EC2 instance to be imported.
 
@@ -84,18 +99,17 @@ resource "aws_instance" "myEC2Instance" {
 }
 ```
 
-Now, let's import the instance to the state file.
+Now, let's import the instance to the state file using the id of your ec2 which can be found
 
 ```bash
 $ terraform init
 # ...
-$ terraform import aws_instance.myEC2Instance i-0fbab2ce583018fa7
+$ terraform import aws_instance.myEC2Instance <your-ec2-instance-id>
 
-felipe@Felipes-MacBook-Pro cfn_test % terraform import aws_instance.myEC2Instance i-0fbab2ce583018fa7
-aws_instance.myEC2Instance: Importing from ID "i-0fbab2ce583018fa7"...
+aws_instance.myEC2Instance: Importing from ID "<your-ec2-instance-id>"...
 aws_instance.myEC2Instance: Import prepared!
   Prepared aws_instance for import
-aws_instance.myEC2Instance: Refreshing state... [id=i-0fbab2ce583018fa7]
+aws_instance.myEC2Instance: Refreshing state... [id=<your-ec2-instance-id>]
 
 Import successful!
 
@@ -107,6 +121,7 @@ From now on, the EC2 instance is managed by Terraform and the CFN stack is gone.
 
 ## Clean-up
 
+Because the EC2 is managed by Terraform now, the instance will be destroyed.
 ```bash
-terraform destroy
+terraform destroy --auto-approve
 ```
